@@ -2,7 +2,6 @@ use std::fs;
 use crate::models::{Command, CommandError};
 use std::process::Command as StdCommand;
 
-
 pub fn parse_command(input: &str) -> Command {
     // Split the user input into pieces based on whitespace
     let parts: Vec<&str> = input.split_whitespace().collect();
@@ -31,10 +30,10 @@ pub fn parse_command(input: &str) -> Command {
         "ping" => Command::Ping(arg1),
         "exit" => Command::Exit,
         "quit" => Command::Exit,
+        "q" => Command::Exit,
         _ => Command::Unknown,
     }
 }
-
 
 pub fn execute_command(command: Command)  {
     let result = match command {
@@ -53,22 +52,6 @@ pub fn execute_command(command: Command)  {
         println!("Error executing command: {:?}", e);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 fn execute_dir(args: &[Option<String>]) -> Result<(), CommandError> {
     // If args is None, print the current directory

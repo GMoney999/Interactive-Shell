@@ -19,6 +19,7 @@ pub enum CommandError {
     IOError(io::Error),
     NotFound(String),
     InvalidArgument(String),
+    TooManyArguments(String),
     CommandFailed(String)
 } impl From<io::Error> for CommandError {
     fn from(err: io::Error) -> Self {

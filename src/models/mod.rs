@@ -1,4 +1,5 @@
 use std::io;
+use std::fmt;
 
 pub enum Command {
     Dir(Option<String>, Option<String>, Option<String>, Option<String>),
@@ -19,10 +20,25 @@ pub enum CommandError {
     IOError(io::Error),
     NotFound(String),
     InvalidArgument(String),
+    MissingArguments(String),
     TooManyArguments(String),
     CommandFailed(String)
-} impl From<io::Error> for CommandError {
+}
+impl From<io::Error> for CommandError {
     fn from(err: io::Error) -> Self {
         CommandError::IOError(err)
     }
 }
+impl fmt::Display for CommandError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CommandError::IOError(err) => write!(f, "I/O error: {}", err),
+            CommandError::NotFound(msg) => write!(f, "Command not found: {}", msg),
+            CommandError::InvalidArgument(msg) => write!(f, "Invalid argument: {}", msg),
+            CommandError::MissingArguments(msg) => write!(f, "Missing arguments: {}", msg),
+            CommandError::TooManyArguments(msg) => write!(f, "Too many arguments: {}", msg),
+            CommandError::CommandFailed(msg) => write!(f, "Command failed: {}", msg),
+        }
+    }
+}
+

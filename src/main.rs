@@ -33,14 +33,14 @@ fn real_main() -> i32 {
             // Parse user input
             let command = parse_command(input);
 
-            // If the command found was anything else besides exit, execute it
+            // If we recognize the command, and it was anything else besides exit, execute it
             match command {
                 Command::Exit => {
                     println!("\nThank you for using MyShell!\n");
                     return 0;
                 },
                 Command::Unknown => {
-                    println!("Invalid command: {input}");
+                    println!("\nInvalid command: {input}\n");
                 },
                 _ => {
                     // Spawn a new thread to execute the command in the new thread

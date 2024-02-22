@@ -1,5 +1,6 @@
 use std::fs;
 use std::io::{self, Write};
+use std::env;
 use crate::models::{Command, CommandError};
 pub type Result<T> = std::result::Result<T, CommandError>;
 use std::process::Command as StdCommand;
@@ -70,18 +71,19 @@ pub fn execute_command(command: Command)  {
 }
 
 fn execute_dir(args: &[Option<String>]) -> Result<()> {
-    // If args is None, print the current directory
-    if args[0].is_none() {
-        let output = StdCommand::new("ls")
-            .arg("-l")
-            .output()
-            .expect("Failed to execute command\n");
-        let result = String::from_utf8_lossy(&output.stdout);
-        println!("{}", result);
-    } else {
-        println!("Todo!");
-    }
+    let current_dir= env::current_dir().map_err(CommandError::IOError)?;
+    println!("\nContents of {:?}", current_dir);
 
+    let entries = fs::read_dir(current_dir).map_err(CommandError::IOError)?;
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        let metadata = fs::metadata(&path)?;
+        let file_type = if metadata.is_dir() { "Directory" } else { "File" };
+        println!("{:?} - {}", path.file_name().unwrap(), file_type);
+    }
+    println!();
     Ok(())
 }
 
@@ -134,12 +136,13 @@ fn execute_echo(args: &[Option<String>]) -> Result<()> {
 
 
 
-
 fn execute_color(arg: &[Option<String>]) -> Result<()> {
     let color = match arg.first() {
         Some(Some(arg)) => arg,
         Some(None) | None => return Err(CommandError::MissingArguments("color <colorname>\n".to_string()))
     };
+
+    //
 
     println!("{}", color);
     Ok(())
@@ -238,4 +241,3 @@ mod tests {
         }
     }
 }
-

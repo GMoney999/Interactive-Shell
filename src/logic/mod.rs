@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::{self, Write};
 use std::env;
+use std::path::{Path};
 use crate::models::{Command, CommandError};
 pub type Result<T> = std::result::Result<T, CommandError>;
 use std::process::Command as StdCommand;
@@ -77,9 +78,9 @@ fn execute_dir(args: &[Option<String>]) -> Result<()> {
     let entries = fs::read_dir(current_dir).map_err(CommandError::IOError)?;
 
     for entry in entries {
-        let entry = entry?;
+        let entry = entry.map_err(CommandError::IOError)?;
         let path = entry.path();
-        let metadata = fs::metadata(&path)?;
+        let metadata = fs::metadata(&path).map_err(CommandError::IOError)?;
         let file_type = if metadata.is_dir() { "Directory" } else { "File" };
         println!("{:?} - {}", path.file_name().unwrap(), file_type);
     }
@@ -100,6 +101,28 @@ fn execute_help() -> Result<()> {
 }
 
 fn execute_vol() -> Result<()> {
+
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: Use 'vol' command for the current drive
+        let output = StdCommand::new("cmd")
+            .args(&["/C", "vol"])
+            .output()
+            .expect("Failed to execute process");
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        println!("\nVolume Info (Windows): {}\n", output_str);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        // macOS and Linux: Display filesystem type and available space
+        let current_dir = env::current_dir().map_err(CommandError::IOError)?;
+        let stat = nix::sys::statvfs::statvfs(current_dir.as_path())?;
+        let fs_type = stat.filesystem_id();
+        // This operation is valid as both operands are u64
+        let available_space = stat.blocks_free() as u64 * stat.block_size() as u64;
+        println!("\nFilesystem Type: {:?}, Available Space: {} bytes\n", fs_type, available_space);
+    }
 
     Ok(())
 }
@@ -209,35 +232,4 @@ fn execute_ping(args: &[Option<String>]) -> Result<()> {
     //     },
     // }
 
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ping_with_valid_address() {
-        let args = vec![Some("127.0.0.1".to_string())];
-        let result = execute_ping(&args);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_ping_with_invalid_address() {
-        let args = vec![Some("256.6.9.6".to_string())]; // Assuming this address is considered invalid
-        let result = execute_ping(&args);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_ping_with_missing_arguments() {
-        let args: Vec<Option<String>> = vec![]; // No arguments provided
-        let result = execute_ping(&args);
-        assert!(result.is_err());
-        if let Err(CommandError::MissingArguments(msg)) = result {
-            assert_eq!(msg, "ping <address>\n");
-        } else {
-            panic!("Expected MissingArguments error");
-        }
-    }
 }

@@ -29,6 +29,12 @@ impl From<io::Error> for CommandError {
         CommandError::IOError(err)
     }
 }
+impl From<nix::errno::Errno> for CommandError {
+    fn from(err: nix::errno::Errno) -> Self {
+        CommandError::IOError(io::Error::new(io::ErrorKind::Other, err.to_string()))
+    }
+}
+
 impl fmt::Display for CommandError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

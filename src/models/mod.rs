@@ -5,7 +5,7 @@ pub enum Command {
     Dir(Option<String>, Option<String>, Option<String>, Option<String>),
     Help,
     Vol,
-    Path,
+    Path(PathCommand),
     TaskList,
     Notepad,
     Echo(Option<String>, Option<String>, Option<String>, Option<String>),
@@ -38,13 +38,19 @@ impl From<nix::errno::Errno> for CommandError {
 impl fmt::Display for CommandError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CommandError::IOError(err) => write!(f, "I/O error: {}", err),
-            CommandError::NotFound(msg) => write!(f, "Command not found: {}", msg),
-            CommandError::InvalidArgument(msg) => write!(f, "Invalid argument: {}", msg),
-            CommandError::MissingArguments(msg) => write!(f, "Missing arguments: {}", msg),
-            CommandError::TooManyArguments(msg) => write!(f, "Too many arguments: {}", msg),
-            CommandError::CommandFailed(msg) => write!(f, "Command failed: {}", msg),
+            CommandError::IOError(err) => write!(f, "I/O error {}", err),
+            CommandError::NotFound(msg) => write!(f, "Command not found {}", msg),
+            CommandError::InvalidArgument(msg) => write!(f, "Invalid argument(s) {}", msg),
+            CommandError::MissingArguments(msg) => write!(f, "Missing argument(s) {}", msg),
+            CommandError::TooManyArguments(msg) => write!(f, "Too many arguments {}", msg),
+            CommandError::CommandFailed(msg) => write!(f, "Command failed {}", msg),
         }
     }
 }
 
+#[derive(Debug)]
+pub enum PathCommand {
+    Show,
+    Set(String),
+    Clear
+}

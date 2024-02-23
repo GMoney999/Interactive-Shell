@@ -2,7 +2,12 @@ use std::fs;
 use std::io::{self, Write};
 use std::env;
 use std::path::{Path};
-use crate::models::{Command, CommandError};
+use crossterm::{
+    execute,
+    style::{Color, SetBackgroundColor, SetForegroundColor},
+    terminal::{Clear, ClearType},
+};
+use crate::models::{Command, CommandError, PathCommand};
 pub type Result<T> = std::result::Result<T, CommandError>;
 use std::process::Command as StdCommand;
 const COMMANDS: &[(&str, &str)] = &[
@@ -38,7 +43,14 @@ pub fn parse_command(input: &str) -> Command {
         "dir" => Command::Dir(arg1, arg2, arg3, arg4),
         "help" => Command::Help,
         "vol" => Command::Vol,
-        "path" => Command::Path,
+        "path" => {
+            match (arg1.as_deref(), arg2) {
+                (None, _) => Command::Path(PathCommand::Show),
+                (Some("set"), Some(new_path)) => Command::Path(PathCommand::Set(new_path)),
+                (Some("clear"), _) => Command::Path(PathCommand::Clear),
+                _ => Command::Unknown,
+            }
+        },
         "tasklist" => Command::TaskList,
         "notepad" => Command::Notepad,
         "echo" => Command::Echo(arg1, arg2, arg3, arg4),
@@ -51,12 +63,14 @@ pub fn parse_command(input: &str) -> Command {
     }
 }
 
+
+
 pub fn execute_command(command: Command)  {
     let result = match command {
         Command::Dir(arg1, arg2, arg3, arg4) => execute_dir(&[arg1, arg2, arg3, arg4]),
         Command::Help => execute_help(),
         Command::Vol => execute_vol(),
-        Command::Path => execute_path(),
+        Command::Path(path_command) => execute_path(path_command),
         Command::TaskList => execute_tasklist(),
         Command::Notepad => execute_notepad(),
         Command::Echo(arg1, arg2, arg3, arg4) => execute_echo(&[arg1, arg2, arg3, arg4]),
@@ -127,7 +141,24 @@ fn execute_vol() -> Result<()> {
     Ok(())
 }
 
-fn execute_path() -> Result<()> {
+fn execute_path(command: PathCommand) -> Result<()> {
+    match command {
+        PathCommand::Show => {
+            if let Ok(path) = env::var("PATH") {
+                println!("Current PATH: {}", path);
+            } else {
+                println!("PATH variable is not set.");
+            }
+        },
+        PathCommand::Set(new_path) => {
+            env::set_var("PATH", &new_path);
+            println!("PATH is set to: {}", new_path);
+        },
+        PathCommand::Clear => {
+            env::set_var("PATH", "");
+            println!("PATH is cleared.");
+        },
+    }
 
     Ok(())
 }
@@ -136,6 +167,18 @@ fn execute_tasklist() -> Result<()> {
     Ok(())
 }
 fn execute_notepad() -> Result<()> {
+    #[cfg(target_os = "windows")]
+    match StdCommand::new("notepad.exe").output() {
+        Ok(_) => {
+            println!("Notepad opened!");
+        },
+        Err(e) => {
+            return Err(CommandError::CommandFailed(format!("Failed to open Notepad: {}", e)));
+        }
+    };
+
+    #[cfg(not(target_os = "windows"))]
+    println!("Notepad is not available on this operating system.");
 
     Ok(())
 }
@@ -159,24 +202,76 @@ fn execute_echo(args: &[Option<String>]) -> Result<()> {
 
 
 
-fn execute_color(arg: &[Option<String>]) -> Result<()> {
-    let color = match arg.first() {
-        Some(Some(arg)) => arg,
-        Some(None) | None => return Err(CommandError::MissingArguments("color <colorname>\n".to_string()))
+fn parse_color(color: &str) -> Option<Color> {
+    match color.to_lowercase().as_str() {
+        "black" => Some(Color::Black),
+        "red" => Some(Color::Red),
+        "green" => Some(Color::Green),
+        "blue" => Some(Color::Blue),
+        "white" => Some(Color::White),
+        "yellow" => Some(Color::Yellow),
+        "magenta" => Some(Color::Magenta),
+        "cyan" => Some(Color::Cyan),
+        "grey" => Some(Color::Grey),
+        // Add more colors as needed
+        _ => None,
+    }
+}
+
+fn execute_color(args: &[Option<String>]) -> Result<()> {
+    let color_arg = match args.first().and_then(|opt| opt.as_ref()) {
+        Some(arg) => arg,
+        None => return Err(CommandError::MissingArguments("\nCorrect usage: color text=<text color> or color background=<background color>\n".to_string())),
     };
 
-    //
+    let mut stdout = io::stdout();
 
-    println!("{}", color);
+    // Directly parse the argument string for settings
+    let settings = color_arg.split_whitespace();
+
+    for setting in settings {
+        let parts: Vec<&str> = setting.split('=').collect();
+        if parts.len() == 2 {
+            let target = parts[0];
+            let color = parts[1];
+
+            match target {
+                "text" => {
+                    if let Some(c) = parse_color(color) {
+                        execute!(stdout, SetForegroundColor(c))
+                            .map_err(CommandError::IOError)?;
+                        execute!(stdout, Clear(ClearType::All)).map_err(CommandError::IOError)?;
+                        stdout.flush().map_err(CommandError::IOError)?;
+                    }
+                },
+                "background" => {
+                    if let Some(c) = parse_color(color) {
+                        execute!(stdout, SetBackgroundColor(c))
+                            .map_err(CommandError::IOError)?;
+                        execute!(stdout, Clear(ClearType::All)).map_err(CommandError::IOError)?;
+                        stdout.flush().map_err(CommandError::IOError)?;
+                    }
+                },
+                _ => println!("Invalid argument: {}", setting),
+            }
+        } else {
+            return Err(CommandError::InvalidArgument("\nCorrect usage: color text=<text color> or color background=<background color>\n".to_string()));
+        }
+    }
+
+
+
+
     Ok(())
 }
+
 
 
 
 fn execute_ping(args: &[Option<String>]) -> Result<()> {
     let address = match args.first() {
         Some(Some(arg)) => arg,
-        Some(None) | None => return Err(CommandError::MissingArguments("ping <address>\n".to_string())),
+        Some(None) | None => return Err(CommandError::MissingArguments("\nCorrect usage: ping <address>\n".to_string())),
     };
 
     let command = StdCommand::new("ping").arg("127.0.0.1").arg("-c").arg("4").output();

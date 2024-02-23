@@ -177,22 +177,71 @@ fn execute_path(args: &[Option<String>]) -> Result<()> {
 
 
 fn execute_tasklist() -> Result<()> {
+    #[cfg(target_os = "windows")]
+        let command = StdCommand::new("tasklist.exe").output();
+
+    #[cfg(target_os = "linux")]
+        let command = StdCommand::new("ps").args(["-e", "-o", "pid,comm"]).output();
+
+    #[cfg(target_os = "macos")]
+        let command = StdCommand::new("ps").args(["-e", "-o", "pid,comm"]).output();
+
+    match command {
+        Ok(output) => {
+            if output.status.success() {
+                let output_str = String::from_utf8_lossy(&output.stdout);
+                // Splitting the command output into lines according to process number
+                let lines = output_str.lines();
+                let mut process_number = 1;
+                for line in lines {
+                    // Printing each line with a process number
+                    println!("{}: {}", process_number, line);
+                    process_number += 1;
+                }
+            } else {
+                let error_message = String::from_utf8_lossy(&output.stderr);
+                return Err(CommandError::CommandFailed(format!("Error executing task list command: {}", error_message)));
+            }
+        },
+        Err(e) => {
+            return Err(CommandError::CommandFailed(format!("Error executing command: {e}")));
+        }
+    }
 
     Ok(())
 }
+
+
 fn execute_notepad() -> Result<()> {
     #[cfg(target_os = "windows")]
-    match StdCommand::new("notepad.exe").output() {
-        Ok(_) => {
-            println!("Notepad opened!");
-        },
-        Err(e) => {
-            return Err(CommandError::CommandFailed(format!("Failed to open Notepad: {}", e)));
-        }
-    };
+        let command = "notepad.exe";
+
+    #[cfg(target_os = "macos")]
+        let command = "open";
+    #[cfg(target_os = "macos")]
+        let args = ["-a", "TextEdit"];
+
+    #[cfg(target_os = "linux")]
+        let command = "gedit";
 
     #[cfg(not(target_os = "windows"))]
-    println!("Notepad is not available on this operating system.");
+        let output = if cfg!(target_os = "macos") {
+        StdCommand::new(command).args(args).output()
+    } else {
+        StdCommand::new(command).output()
+    };
+
+    #[cfg(target_os = "windows")]
+        let output = StdCommand::new(command).output();
+
+    match output {
+        Ok(_) => {
+            println!("Editor opened!");
+        },
+        Err(e) => {
+            return Err(CommandError::CommandFailed(format!("Failed to open editor: {}", e)));
+        }
+    }
 
     Ok(())
 }

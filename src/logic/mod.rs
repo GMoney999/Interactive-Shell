@@ -344,7 +344,7 @@ fn execute_ping(args: &[Option<String>]) -> Result<()> {
         let count_arg = "-c";
 
     let output = StdCommand::new("ping")
-        .args(&[count_arg, "4", address]) // Adjust the count argument based on the OS
+        .args([count_arg, "4", address]) // Adjust the count argument based on the OS
         .output()
         .map_err(|e| CommandError::CommandFailed(format!("Failed to execute ping command: {}\n", e)))?;
 

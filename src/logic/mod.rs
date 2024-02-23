@@ -7,7 +7,7 @@ use crossterm::{
     style::{Color, SetBackgroundColor, SetForegroundColor},
     terminal::{Clear, ClearType},
 };
-use crate::models::{Command, CommandError, PathCommand};
+use crate::models::{Command, CommandError};
 pub type Result<T> = std::result::Result<T, CommandError>;
 use std::process::Command as StdCommand;
 const COMMANDS: &[(&str, &str)] = &[
@@ -43,14 +43,7 @@ pub fn parse_command(input: &str) -> Command {
         "dir" => Command::Dir(arg1, arg2, arg3, arg4),
         "help" => Command::Help,
         "vol" => Command::Vol,
-        "path" => {
-            match (arg1.as_deref(), arg2) {
-                (None, _) => Command::Path(PathCommand::Show),
-                (Some("set"), Some(new_path)) => Command::Path(PathCommand::Set(new_path)),
-                (Some("clear"), _) => Command::Path(PathCommand::Clear),
-                _ => Command::Unknown,
-            }
-        },
+        "path" => Command::Path(arg1, arg2),
         "tasklist" => Command::TaskList,
         "notepad" => Command::Notepad,
         "echo" => Command::Echo(arg1, arg2, arg3, arg4),
@@ -70,7 +63,7 @@ pub fn execute_command(command: Command)  {
         Command::Dir(arg1, arg2, arg3, arg4) => execute_dir(&[arg1, arg2, arg3, arg4]),
         Command::Help => execute_help(),
         Command::Vol => execute_vol(),
-        Command::Path(path_command) => execute_path(path_command),
+        Command::Path(arg1, arg2) => execute_path(&[arg1, arg2]),
         Command::TaskList => execute_tasklist(),
         Command::Notepad => execute_notepad(),
         Command::Echo(arg1, arg2, arg3, arg4) => execute_echo(&[arg1, arg2, arg3, arg4]),
@@ -141,27 +134,48 @@ fn execute_vol() -> Result<()> {
     Ok(())
 }
 
-fn execute_path(command: PathCommand) -> Result<()> {
-    match command {
-        PathCommand::Show => {
+fn execute_path(args: &[Option<String>]) -> Result<()> {
+    let first_arg = args.first().and_then(|opt| opt.as_ref());
+
+    match first_arg {
+        None => {
+            // Default path behavior: display the current PATH
             if let Ok(path) = env::var("PATH") {
                 println!("Current PATH: {}", path);
             } else {
                 println!("PATH variable is not set.");
             }
         },
-        PathCommand::Set(new_path) => {
-            env::set_var("PATH", &new_path);
-            println!("PATH is set to: {}", new_path);
-        },
-        PathCommand::Clear => {
+        Some(arg) if arg == "clear" => {
+            // Clear the path
             env::set_var("PATH", "");
-            println!("PATH is cleared.");
+            println!("PATH has been cleared.");
         },
+        Some(arg) if arg == "set" => {
+            // Look for second argument. If it is a path, set it.
+            match args.get(1).and_then(|opt| opt.as_ref()) {
+                Some(path) => {
+                    env::set_var("PATH", path);
+                    println!("PATH has been set to: {}", path);
+                },
+                None => {
+                    // If the 'set' argument is not followed by a path, throw an error.
+                    return Err(CommandError::MissingArguments("\nCorrect usage: path set <PATH>\n".to_string()));
+                }
+            }
+        },
+        Some(_) => {
+            // If the first argument is anything other than 'set' or 'clear', throw an error.
+            return Err(CommandError::InvalidArgument("\nCorrect usage: 'path' OR 'path clear' OR 'path set <PATH>'\n".to_string()));
+        }
     }
 
     Ok(())
 }
+
+
+
+
 fn execute_tasklist() -> Result<()> {
 
     Ok(())

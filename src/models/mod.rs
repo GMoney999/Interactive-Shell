@@ -5,7 +5,7 @@ pub enum Command {
     Dir(Option<String>, Option<String>, Option<String>, Option<String>),
     Help,
     Vol,
-    Path(PathCommand),
+    Path(Option<String>, Option<String>),
     TaskList,
     Notepad,
     Echo(Option<String>, Option<String>, Option<String>, Option<String>),
@@ -48,9 +48,3 @@ impl fmt::Display for CommandError {
     }
 }
 
-#[derive(Debug)]
-pub enum PathCommand {
-    Show,
-    Set(String),
-    Clear
-}

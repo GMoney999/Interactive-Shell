@@ -2,7 +2,7 @@ use std::io;
 use std::fmt;
 
 pub enum Command {
-    Dir(Option<String>, Option<String>, Option<String>, Option<String>),
+    Dir,
     Help,
     Vol,
     Path(Option<String>, Option<String>),

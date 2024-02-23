@@ -40,7 +40,7 @@ pub fn parse_command(input: &str) -> Command {
 
     // Based on the command the user inputted, return the correct state
     match command {
-        "dir" => Command::Dir(arg1, arg2, arg3, arg4),
+        "dir" => Command::Dir,
         "help" => Command::Help,
         "vol" => Command::Vol,
         "path" => Command::Path(arg1, arg2),
@@ -60,7 +60,7 @@ pub fn parse_command(input: &str) -> Command {
 
 pub fn execute_command(command: Command)  {
     let result = match command {
-        Command::Dir(arg1, arg2, arg3, arg4) => execute_dir(&[arg1, arg2, arg3, arg4]),
+        Command::Dir => execute_dir(),
         Command::Help => execute_help(),
         Command::Vol => execute_vol(),
         Command::Path(arg1, arg2) => execute_path(&[arg1, arg2]),
@@ -78,7 +78,7 @@ pub fn execute_command(command: Command)  {
     }
 }
 
-fn execute_dir(args: &[Option<String>]) -> Result<()> {
+fn execute_dir() -> Result<()> {
     let current_dir= env::current_dir().map_err(CommandError::IOError)?;
     println!("\nContents of {:?}", current_dir);
 
@@ -141,22 +141,22 @@ fn execute_path(args: &[Option<String>]) -> Result<()> {
         None => {
             // Default path behavior: display the current PATH
             if let Ok(path) = env::var("PATH") {
-                println!("Current PATH: {}", path);
+                println!("\nCurrent PATH: {}\n", path);
             } else {
-                println!("PATH variable is not set.");
+                println!("\nPATH variable is not set.\n");
             }
         },
         Some(arg) if arg == "clear" => {
             // Clear the path
             env::set_var("PATH", "");
-            println!("PATH has been cleared.");
+            println!("\nPATH has been cleared.\n");
         },
         Some(arg) if arg == "set" => {
             // Look for second argument. If it is a path, set it.
             match args.get(1).and_then(|opt| opt.as_ref()) {
                 Some(path) => {
                     env::set_var("PATH", path);
-                    println!("PATH has been set to: {}", path);
+                    println!("\nPATH has been set to: {}\n", path);
                 },
                 None => {
                     // If the 'set' argument is not followed by a path, throw an error.
@@ -331,63 +331,30 @@ fn execute_color(args: &[Option<String>]) -> Result<()> {
 
 
 
+
 fn execute_ping(args: &[Option<String>]) -> Result<()> {
     let address = match args.first() {
         Some(Some(arg)) => arg,
-        Some(None) | None => return Err(CommandError::MissingArguments("\nCorrect usage: ping <address>\n".to_string())),
+        Some(None) | None => return Err(CommandError::MissingArguments("Correct usage: ping <address>\n".to_string())),
     };
 
-    let command = StdCommand::new("ping").arg("127.0.0.1").arg("-c").arg("4").output();
-    println!("{:?}", command.unwrap());
+    #[cfg(target_os = "windows")]
+        let count_arg = "-n";
+    #[cfg(not(target_os = "windows"))]
+        let count_arg = "-c";
+
+    let output = StdCommand::new("ping")
+        .args(&[count_arg, "4", address]) // Adjust the count argument based on the OS
+        .output()
+        .map_err(|e| CommandError::CommandFailed(format!("Failed to execute ping command: {}\n", e)))?;
+
+    if output.status.success() {
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        println!("{}", output_str);
+    } else {
+        let error_message = String::from_utf8_lossy(&output.stderr);
+        return Err(CommandError::CommandFailed(format!("Error pinging address: {}\n", error_message.trim())));
+    }
 
     Ok(())
-        // // Determine the correct argument to limit ping based on the OS
-        // #[cfg(target_os = "windows")]
-        //     let count_arg = "-n";
-        // #[cfg(not(target_os = "windows"))]
-        //     let count_arg = "-c";
-        //
-        // match StdCommand::new("ping").arg(count_arg).arg("4").arg(address).output() {
-        //     Ok(output) => match output.status.success() {
-        //         true => {
-        //             // Command executed successfully, print the stdout of the command
-        //             println!("{}", String::from_utf8_lossy(&output.stdout));
-        //             Ok(())
-        //         },
-        //         false => {
-        //             // Command execution failed, print the stderr of the command
-        //             let error_str = String::from_utf8_lossy(&output.stderr);
-        //             eprintln!("{}", error_str); // Write to stderr
-        //             Err(CommandError::CommandFailed(format!("Ping to {} failed", address)))
-        //         },
-        //     },
-        //     Err(e) => {
-        //         // Error executing the command, write the error to stderr
-        //         eprintln!("Failed to execute ping command: {}", e);
-        //         Err(CommandError::CommandFailed(format!("Failed to execute ping: {}", e)))
-        //     },
-        // }
-
-
-    // match StdCommand::new("ping").arg(address).output() {
-    //     Ok(output) => match output.status.success() {
-    //         true => {
-    //             // Command executed successfully, print the stdout of the command
-    //             println!("{}", String::from_utf8_lossy(&output.stdout));
-    //             Ok(())
-    //         },
-    //         false => {
-    //             // Command execution failed, print the stderr of the command
-    //             let error_str = String::from_utf8_lossy(&output.stderr);
-    //             eprintln!("{}", error_str);
-    //             Err(CommandError::CommandFailed(format!("Ping to {} failed", address)))
-    //         },
-    //     },
-    //     Err(e) => {
-    //         // Error executing the command, write the error to stderr
-    //         eprintln!("Failed to execute ping command: {}", e);
-    //         Err(CommandError::CommandFailed(format!("Failed to execute ping: {}", e)))
-    //     },
-    // }
-
 }

@@ -98,32 +98,8 @@ Exit the shell
 
 Can also do `q` or `exit`
 
-
 ---
 
 
 
-### 
-
-
-## Enums
-
-### Models
-Here, we will describe the data models used within the Interactive-Shell, including any structures or enums that represent commands, configurations, or state. This section aims to give a clear understanding of the data architecture and how it supports the shell's functionality.
-
-### 
-
-## CLI Commands
-
-### Logic/Execute Functions
-Detailing the core functionality, this section will dive into the logic behind command execution. It will cover how commands are parsed, validated, and executed, including any interaction with the system or external resources. Special focus will be given to the modular design, allowing for easy extension with new commands.
-
-## Error handling
-
-### Errors
-This part of the documentation will outline the error handling strategy of the Interactive-Shell. It will include descriptions of custom error types and how errors propagate through the command execution process, ensuring robustness and user-friendly error messages.
-
-## Support
-
-For more information, troubleshooting assistance, and contributions, please visit the [Interactive-Shell repository](https://github.com/GMoney999/Interactive-Shell) or submit an issue through the issue tracker.
 
